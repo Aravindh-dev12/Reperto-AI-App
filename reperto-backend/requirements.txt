@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+pydantic
+python-multipart
+sqlalchemy
+databases
+passlib[bcrypt]
+pyjwt
+openai
+python-dotenv
