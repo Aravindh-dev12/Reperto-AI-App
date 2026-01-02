@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+databases[postgresql]
+SQLAlchemy
+asyncpg
+passlib[bcrypt]
+python-jose[cryptography]
+python-dotenv
+openai
