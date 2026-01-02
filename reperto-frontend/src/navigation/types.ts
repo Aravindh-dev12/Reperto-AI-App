@@ -7,6 +7,7 @@ export type RootStackParamList = {
   Cases: undefined;
   EditCase: { caseId?: string } | undefined;
   Review: { confirmed?: Array<{ path: string; confidence?: number; evidence?: string }> } | undefined;
+  RemedyResults: undefined;
 };
 
 export type LoginScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
