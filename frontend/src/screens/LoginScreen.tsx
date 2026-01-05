@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { LoginScreenNavigationProp } from '../navigation/types';
-import { login } from '../services/api';
+import { 
+  View, Text, TextInput, TouchableOpacity, 
+  StyleSheet, Alert, KeyboardAvoidingView, 
+  Platform, ScrollView 
+} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors, Shadows } from '../styles';
+import { login } from '../services/api';
 
 type Props = {
-  navigation: LoginScreenNavigationProp;
+  navigation: any;
 };
 
 export default function LoginScreen({ navigation }: Props) {
@@ -24,21 +27,37 @@ export default function LoginScreen({ navigation }: Props) {
     try {
       const data = await login(email, password);
       if (data?.access_token) {
+        // Save token to AsyncStorage
         await AsyncStorage.setItem('access_token', data.access_token);
-        navigation.replace('Cases');
+        
+        // Navigate to Main screen which shows Home
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Main' }],
+        });
       } else {
         throw new Error('Invalid response');
       }
-    } catch (e) {
-      Alert.alert('Login failed', 'Please check credentials or start backend server.');
+    } catch (e: any) {
+      console.error('Login error:', e);
+      Alert.alert(
+        'Login Failed', 
+        e.response?.data?.detail || 'Invalid credentials or server error'
+      );
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+    <KeyboardAvoidingView 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+      style={styles.container}
+    >
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent} 
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.header}>
           <Text style={styles.logo}>Reperto AI</Text>
           <Text style={styles.subtitle}>Medical Case Review & Analysis</Text>
@@ -81,7 +100,9 @@ export default function LoginScreen({ navigation }: Props) {
               onPress={handleLogin}
               disabled={loading}
             >
-              <Text style={styles.buttonText}>{loading ? 'Signing in...' : 'Sign In'}</Text>
+              <Text style={styles.buttonText}>
+                {loading ? 'Signing in...' : 'Sign In'}
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -89,13 +110,18 @@ export default function LoginScreen({ navigation }: Props) {
 
           <View style={styles.footer}>
             <Text style={styles.footerText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Signup')} disabled={loading}>
+            <TouchableOpacity 
+              onPress={() => navigation.navigate('Signup')} 
+              disabled={loading}
+            >
               <Text style={styles.footerLink}>Sign up</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        <Text style={styles.disclaimer}>This is a secure medical application. For demo purposes only.</Text>
+        <Text style={styles.disclaimer}>
+          This is a secure medical application. For demo purposes only.
+        </Text>
       </ScrollView>
     </KeyboardAvoidingView>
   );

@@ -1,11 +1,15 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { SignupScreenNavigationProp } from '../navigation/types';
-import { signup } from '../services/api';
+import { 
+  View, Text, TextInput, TouchableOpacity, 
+  StyleSheet, Alert, KeyboardAvoidingView, 
+  Platform, ScrollView 
+} from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors, Shadows } from '../styles';
+import { signup } from '../services/api';
 
 type Props = {
-  navigation: SignupScreenNavigationProp;
+  navigation: any;
 };
 
 export default function SignupScreen({ navigation }: Props) {
@@ -27,24 +31,39 @@ export default function SignupScreen({ navigation }: Props) {
 
     setLoading(true);
     try {
-      const res = await signup(name, email, password);
-      if (res?.status === 'ok') {
-        Alert.alert('Success', 'Account created! Please log in.', [
-          { text: 'OK', onPress: () => navigation.replace('Login') }
-        ]);
+      const data = await signup(name, email, password);
+      if (data?.access_token) {
+        // Save token to AsyncStorage
+        await AsyncStorage.setItem('access_token', data.access_token);
+        
+        // Navigate to Main screen which shows Home
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Main' }],
+        });
       } else {
         throw new Error('Signup failed');
       }
-    } catch (e) {
-      Alert.alert('Signup failed', 'Could not create account. Try a different email.');
+    } catch (e: any) {
+      console.error('Signup error:', e);
+      Alert.alert(
+        'Signup Failed', 
+        e.response?.data?.detail || 'Could not create account. Try a different email.'
+      );
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+    <KeyboardAvoidingView 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+      style={styles.container}
+    >
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent} 
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.header}>
           <Text style={styles.logo}>Reperto AI</Text>
           <Text style={styles.subtitle}>Medical Case Review & Analysis</Text>
@@ -99,7 +118,9 @@ export default function SignupScreen({ navigation }: Props) {
               onPress={handleSignup}
               disabled={loading}
             >
-              <Text style={styles.buttonText}>{loading ? 'Creating account...' : 'Sign Up'}</Text>
+              <Text style={styles.buttonText}>
+                {loading ? 'Creating account...' : 'Sign Up'}
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -107,13 +128,18 @@ export default function SignupScreen({ navigation }: Props) {
 
           <View style={styles.footer}>
             <Text style={styles.footerText}>Already have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Login')} disabled={loading}>
+            <TouchableOpacity 
+              onPress={() => navigation.navigate('Login')} 
+              disabled={loading}
+            >
               <Text style={styles.footerLink}>Sign in</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        <Text style={styles.disclaimer}>By signing up, you agree to our terms and conditions.</Text>
+        <Text style={styles.disclaimer}>
+          By signing up, you agree to our terms and conditions.
+        </Text>
       </ScrollView>
     </KeyboardAvoidingView>
   );
