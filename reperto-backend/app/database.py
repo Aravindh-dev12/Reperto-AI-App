@@ -1,9 +1,8 @@
 # app/database.py
 import os
 from sqlalchemy import create_engine, MetaData
-
-# In-memory store for MVP
-USERS_DB = {}  # {email: {name, email, password_hash}}
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
 
 # Optional: Use SQLite if DATABASE_URL is provided
 DATABASE_URL = os.getenv(
@@ -17,22 +16,9 @@ try:
         engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
     else:
         engine = create_engine(DATABASE_URL)
-    metadata = MetaData()
+    
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    Base = declarative_base()
 except Exception as e:
-    print(f"Database connection warning: {e}. Using in-memory store.")
-    engine = None
-    metadata = None
-
-# In-memory database object (simple dict)
-class InMemoryDatabase:
-    def __init__(self):
-        self.connected = False
-    
-    async def connect(self):
-        self.connected = True
-    
-    async def disconnect(self):
-        self.connected = False
-
-# Use in-memory database for MVP
-database = InMemoryDatabase()
+    print(f"Database connection warning: {e}")
+    raise e

@@ -9,7 +9,7 @@ type Props = {
   navigation: LoginScreenNavigationProp;
 };
 
-export default function LoginScreen({ navigation }: Props) {
+export default function LoginScreen({ navigation, route }: any) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -25,6 +25,9 @@ export default function LoginScreen({ navigation }: Props) {
       const data = await login(email, password);
       if (data?.access_token) {
         await AsyncStorage.setItem('access_token', data.access_token);
+        if (data.user?.name) {
+          await AsyncStorage.setItem('user_name', data.user.name);
+        }
         navigation.replace('Cases');
       } else {
         throw new Error('Invalid response');
@@ -39,63 +42,80 @@ export default function LoginScreen({ navigation }: Props) {
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <Text style={styles.logo}>Reperto AI</Text>
-          <Text style={styles.subtitle}>Medical Case Review & Analysis</Text>
-        </View>
-
-        <View style={[styles.card, Shadows.medium]}>
-          <Text style={styles.title}>Welcome Back</Text>
-          <Text style={styles.description}>Sign in to your account to continue</Text>
-
-          <View style={styles.formContainer}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Email</Text>
-              <TextInput
-                style={[styles.input, { borderColor: email ? Colors.primary : Colors.border }]}
-                placeholder="Enter your email"
-                placeholderTextColor={Colors.textLight}
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                editable={!loading}
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Password</Text>
-              <TextInput
-                style={[styles.input, { borderColor: password ? Colors.primary : Colors.border }]}
-                placeholder="Enter your password"
-                placeholderTextColor={Colors.textLight}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                editable={!loading}
-              />
-            </View>
-
-            <TouchableOpacity
-              style={[styles.button, loading && styles.buttonDisabled]}
-              onPress={handleLogin}
-              disabled={loading}
+        
+        {/* Auth Card */}
+        <View style={[styles.card, Shadows.large]}>
+          
+          {/* Tabs */}
+          <View style={styles.tabContainer}>
+            <TouchableOpacity style={[styles.tab, styles.activeTab]}>
+              <Text style={[styles.tabText, styles.activeTabText]}>Log In</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.tab}
+              onPress={() => navigation.navigate('Signup')}
             >
-              <Text style={styles.buttonText}>{loading ? 'Signing in...' : 'Sign In'}</Text>
+              <Text style={styles.tabText}>Sign Up</Text>
             </TouchableOpacity>
           </View>
 
-          <View style={styles.divider} />
+          <View style={styles.cardContent}>
+            {/* Icon & Welcome */}
+            <View style={styles.header}>
+              <View style={styles.iconCircle}>
+                <Text style={styles.iconText}>📄</Text>
+              </View>
+              <Text style={styles.title}>Welcome Back</Text>
+              <Text style={styles.subtitle}>Enter your credentials to continue</Text>
+            </View>
 
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Signup')} disabled={loading}>
-              <Text style={styles.footerLink}>Sign up</Text>
-            </TouchableOpacity>
+            {/* Form */}
+            <View style={styles.form}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Email Address</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g. dr.sharma@gmail.com"
+                  placeholderTextColor={Colors.textLight}
+                  value={email}
+                  onChangeText={setEmail}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <View style={styles.labelRow}>
+                  <Text style={styles.label}>Password</Text>
+                  <TouchableOpacity>
+                    <Text style={styles.forgotText}>Forgot Password?</Text>
+                  </TouchableOpacity>
+                </View>
+                <TextInput
+                  style={styles.input}
+                  placeholder="••••••••"
+                  placeholderTextColor={Colors.textLight}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                />
+              </View>
+
+              <TouchableOpacity 
+                style={[styles.button, loading && styles.buttonDisabled]} 
+                onPress={handleLogin}
+                disabled={loading}
+              >
+                <Text style={styles.buttonText}>{loading ? 'Signing in...' : 'Sign In 🚀'}</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.termsText}>
+              By continuing, you agree to our <Text style={styles.linkText}>Terms</Text> & <Text style={styles.linkText}>Privacy Policy</Text>
+            </Text>
           </View>
         </View>
 
-        <Text style={styles.disclaimer}>This is a secure medical application. For demo purposes only.</Text>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -104,7 +124,7 @@ export default function LoginScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#F8FAFC', // Very light gray/blue background
   },
   scrollContent: {
     flexGrow: 1,
@@ -112,14 +132,58 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 40,
   },
+  card: {
+    backgroundColor: Colors.background,
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  activeTab: {
+    borderBottomWidth: 2,
+    borderBottomColor: Colors.primary,
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.textLight,
+  },
+  activeTabText: {
+    color: Colors.primary,
+  },
+  cardContent: {
+    padding: 32,
+  },
   header: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 32,
   },
-  logo: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: Colors.primary,
+  iconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: Colors.lightPurple,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  iconText: {
+    fontSize: 24,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: Colors.text,
     marginBottom: 8,
   },
   subtitle: {
@@ -127,84 +191,63 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     textAlign: 'center',
   },
-  card: {
-    backgroundColor: Colors.background,
-    borderRadius: 16,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    marginBottom: 20,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: Colors.text,
-    marginBottom: 8,
-  },
-  description: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    marginBottom: 24,
-  },
-  formContainer: {
-    marginBottom: 20,
+  form: {
+    width: '100%',
   },
   inputGroup: {
-    marginBottom: 16,
+    marginBottom: 20,
+  },
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
   },
   label: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
     color: Colors.text,
-    marginBottom: 8,
+  },
+  forgotText: {
+    fontSize: 12,
+    color: Colors.primary,
+    fontWeight: '600',
   },
   input: {
-    borderWidth: 1.5,
-    borderColor: Colors.border,
-    padding: 12,
-    borderRadius: 10,
-    backgroundColor: Colors.lightGray,
-    fontSize: 14,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 15,
     color: Colors.text,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   button: {
     backgroundColor: Colors.primary,
-    padding: 14,
-    borderRadius: 10,
+    borderRadius: 12,
+    paddingVertical: 16,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 12,
   },
   buttonDisabled: {
-    opacity: 0.6,
+    opacity: 0.7,
   },
   buttonText: {
-    color: Colors.textWhite,
-    fontWeight: '700',
-    fontSize: 15,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: Colors.divider,
-    marginVertical: 20,
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  footerText: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-  },
-  footerLink: {
-    fontSize: 14,
-    color: Colors.primary,
+    color: '#fff',
+    fontSize: 16,
     fontWeight: '700',
   },
-  disclaimer: {
+  termsText: {
+    marginTop: 32,
+    textAlign: 'center',
     fontSize: 12,
     color: Colors.textLight,
-    textAlign: 'center',
-    marginTop: 20,
+    lineHeight: 18,
+  },
+  linkText: {
+    color: Colors.textSecondary,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
 });

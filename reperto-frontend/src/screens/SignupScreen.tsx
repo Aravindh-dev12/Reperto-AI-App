@@ -8,7 +8,7 @@ type Props = {
   navigation: SignupScreenNavigationProp;
 };
 
-export default function SignupScreen({ navigation }: Props) {
+export default function SignupScreen({ navigation }: any) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -27,16 +27,20 @@ export default function SignupScreen({ navigation }: Props) {
 
     setLoading(true);
     try {
-      const res = await signup(name, email, password);
-      if (res?.status === 'ok') {
-        Alert.alert('Success', 'Account created! Please log in.', [
-          { text: 'OK', onPress: () => navigation.replace('Login') }
-        ]);
+      await signup(name, email, password);
+      console.log("Signup success");
+      if (Platform.OS === 'web') {
+        alert("Account Created! ✨\nYour professional medical account is ready. You can now log in.");
+        navigation.navigate('Login');
       } else {
-        throw new Error('Signup failed');
+        Alert.alert(
+          'Account Created! ✨',
+          'Your professional medical account is ready. You can now log in to start your clinical analysis.',
+          [{ text: 'Go to Login', onPress: () => navigation.navigate('Login') }]
+        );
       }
-    } catch (e) {
-      Alert.alert('Signup failed', 'Could not create account. Try a different email.');
+    } catch (e: any) {
+      Alert.alert('Signup failed', e.message || 'Could not create account. Try a different email.');
     } finally {
       setLoading(false);
     }
@@ -45,75 +49,86 @@ export default function SignupScreen({ navigation }: Props) {
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <Text style={styles.logo}>Reperto AI</Text>
-          <Text style={styles.subtitle}>Medical Case Review & Analysis</Text>
-        </View>
-
-        <View style={[styles.card, Shadows.medium]}>
-          <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.description}>Join our medical analysis platform</Text>
-
-          <View style={styles.formContainer}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Full Name</Text>
-              <TextInput
-                style={[styles.input, { borderColor: name ? Colors.primary : Colors.border }]}
-                placeholder="Enter your full name"
-                placeholderTextColor={Colors.textLight}
-                value={name}
-                onChangeText={setName}
-                editable={!loading}
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Email</Text>
-              <TextInput
-                style={[styles.input, { borderColor: email ? Colors.primary : Colors.border }]}
-                placeholder="Enter your email"
-                placeholderTextColor={Colors.textLight}
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                editable={!loading}
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Password</Text>
-              <TextInput
-                style={[styles.input, { borderColor: password ? Colors.primary : Colors.border }]}
-                placeholder="At least 6 characters"
-                placeholderTextColor={Colors.textLight}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                editable={!loading}
-              />
-            </View>
-
-            <TouchableOpacity
-              style={[styles.button, loading && styles.buttonDisabled]}
-              onPress={handleSignup}
-              disabled={loading}
+        
+        {/* Auth Card */}
+        <View style={[styles.card, Shadows.large]}>
+          
+          {/* Tabs */}
+          <View style={styles.tabContainer}>
+            <TouchableOpacity 
+              style={styles.tab}
+              onPress={() => navigation.navigate('Login')}
             >
-              <Text style={styles.buttonText}>{loading ? 'Creating account...' : 'Sign Up'}</Text>
+              <Text style={styles.tabText}>Log In</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.tab, styles.activeTab]}>
+              <Text style={[styles.tabText, styles.activeTabText]}>Sign Up</Text>
             </TouchableOpacity>
           </View>
 
-          <View style={styles.divider} />
+          <View style={styles.cardContent}>
+            {/* Icon & Welcome */}
+            <View style={styles.header}>
+              <View style={styles.iconCircle}>
+                <Text style={styles.iconText}>🏥</Text>
+              </View>
+              <Text style={styles.title}>Join Reperto AI</Text>
+              <Text style={styles.subtitle}>Create your professional medical account</Text>
+            </View>
 
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>Already have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Login')} disabled={loading}>
-              <Text style={styles.footerLink}>Sign in</Text>
-            </TouchableOpacity>
+            {/* Form */}
+            <View style={styles.form}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Full Name</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g. Dr. Akhil G"
+                  placeholderTextColor={Colors.textLight}
+                  value={name}
+                  onChangeText={setName}
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Email Address</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g. dr.sharma@gmail.com"
+                  placeholderTextColor={Colors.textLight}
+                  value={email}
+                  onChangeText={setEmail}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Password</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Min. 6 characters"
+                  placeholderTextColor={Colors.textLight}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                />
+              </View>
+
+              <TouchableOpacity 
+                style={[styles.button, loading && styles.buttonDisabled]} 
+                onPress={handleSignup}
+                disabled={loading}
+              >
+                <Text style={styles.buttonText}>{loading ? 'Creating account...' : 'Create Account ✨'}</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.termsText}>
+              By signing up, you agree to our <Text style={styles.linkText}>Terms</Text> & <Text style={styles.linkText}>Privacy Policy</Text>
+            </Text>
           </View>
         </View>
 
-        <Text style={styles.disclaimer}>By signing up, you agree to our terms and conditions.</Text>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -122,7 +137,7 @@ export default function SignupScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#F8FAFC',
   },
   scrollContent: {
     flexGrow: 1,
@@ -130,14 +145,58 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 40,
   },
+  card: {
+    backgroundColor: Colors.background,
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  activeTab: {
+    borderBottomWidth: 2,
+    borderBottomColor: Colors.primary,
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.textLight,
+  },
+  activeTabText: {
+    color: Colors.primary,
+  },
+  cardContent: {
+    padding: 32,
+  },
   header: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 32,
   },
-  logo: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: Colors.primary,
+  iconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: Colors.lightPurple,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  iconText: {
+    fontSize: 24,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: Colors.text,
     marginBottom: 8,
   },
   subtitle: {
@@ -145,84 +204,53 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     textAlign: 'center',
   },
-  card: {
-    backgroundColor: Colors.background,
-    borderRadius: 16,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    marginBottom: 20,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: Colors.text,
-    marginBottom: 8,
-  },
-  description: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    marginBottom: 24,
-  },
-  formContainer: {
-    marginBottom: 20,
+  form: {
+    width: '100%',
   },
   inputGroup: {
-    marginBottom: 16,
+    marginBottom: 20,
   },
   label: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
     color: Colors.text,
     marginBottom: 8,
   },
   input: {
-    borderWidth: 1.5,
-    borderColor: Colors.border,
-    padding: 12,
-    borderRadius: 10,
-    backgroundColor: Colors.lightGray,
-    fontSize: 14,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 15,
     color: Colors.text,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   button: {
     backgroundColor: Colors.primary,
-    padding: 14,
-    borderRadius: 10,
+    borderRadius: 12,
+    paddingVertical: 16,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 12,
   },
   buttonDisabled: {
-    opacity: 0.6,
+    opacity: 0.7,
   },
   buttonText: {
-    color: Colors.textWhite,
-    fontWeight: '700',
-    fontSize: 15,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: Colors.divider,
-    marginVertical: 20,
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  footerText: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-  },
-  footerLink: {
-    fontSize: 14,
-    color: Colors.primary,
+    color: '#fff',
+    fontSize: 16,
     fontWeight: '700',
   },
-  disclaimer: {
+  termsText: {
+    marginTop: 32,
+    textAlign: 'center',
     fontSize: 12,
     color: Colors.textLight,
-    textAlign: 'center',
-    marginTop: 20,
+    lineHeight: 18,
+  },
+  linkText: {
+    color: Colors.textSecondary,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
 });

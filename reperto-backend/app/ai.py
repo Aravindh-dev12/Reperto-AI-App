@@ -88,3 +88,47 @@ def parse_text_endpoint(text: str):
                 }
             ]
         }
+
+
+def generate_cdss_insights(doctor_text: str, rubrics: list, remedies: list):
+    """
+    Generate medical rationales for selected rubrics and remedies.
+    """
+    try:
+        rubric_list = [r["rubric"] for r in rubrics]
+        remedy_list = [rem["remedy"] for rem in remedies]
+
+        prompt = (
+            f"Case Notes: {doctor_text}\n\n"
+            f"Selected Rubrics: {', '.join(rubric_list)}\n"
+            f"Ranked Remedies: {', '.join(remedy_list)}\n\n"
+            "Analyze the above clinical data. Provide:\n"
+            "1. A professional English summary of the patient's problem.\n"
+            "2. A short rationale for why each rubric matches the case notes.\n"
+            "3. A short clinical insight for why each remedy is indicated based on these rubrics.\n\n"
+            "Return ONLY JSON in this format:\n"
+            "{\n"
+            "  \"summary\": \"string\",\n"
+            "  \"rubric_rationales\": { \"rubric_path\": \"short rationale\" },\n"
+            "  \"remedy_insights\": { \"remedy_name\": \"short insight\" }\n"
+            "}"
+        )
+
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a senior homeopathic clinical consultant."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3
+        )
+
+        return json.loads(response.choices[0].message.content)
+
+    except Exception as e:
+        print("AI INSIGHT ERROR:", e)
+        return {
+            "summary": "Clinical analysis completed.",
+            "rubric_rationales": {},
+            "remedy_insights": {}
+        }

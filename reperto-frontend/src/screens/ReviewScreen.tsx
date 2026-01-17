@@ -1,34 +1,57 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, FlatList } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { Colors, Shadows } from '../styles';
-import Badge from '../components/Badge';
-
-interface Rubric {
-  path: string;
-  confidence: number;
-  evidence: string;
-}
+import RubricSuggestionCard from '../components/RubricSuggestionCard';
+import { scoreRubrics } from '../services/api';
 
 export default function ReviewScreen({ route, navigation }: any) {
-  const confirmed = route.params?.confirmed || [];
-  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+  const { analysisResult, doctorText } = route.params || {};
+  
+  const [rubrics, setRubrics] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  // Group rubrics by category (first part of path)
-  const groupedRubrics: { [key: string]: Rubric[] } = {};
-  confirmed.forEach((rubric: Rubric) => {
-    const category = rubric.path.split('>')[0].trim().toUpperCase();
-    if (!groupedRubrics[category]) {
-      groupedRubrics[category] = [];
+  useEffect(() => {
+    if (analysisResult?.rubrics) {
+      setRubrics(analysisResult.rubrics.map((r: any) => ({
+        ...r,
+        selected: true
+      })));
     }
-    groupedRubrics[category].push(rubric);
-  });
+  }, [analysisResult]);
 
-  const categories = Object.keys(groupedRubrics);
+  const toggleRubric = (index: number) => {
+    const newRubrics = [...rubrics];
+    newRubrics[index].selected = !newRubrics[index].selected;
+    setRubrics(newRubrics);
+  };
 
-  const getCategoryColor = (category: string): 'green' | 'orange' | 'purple' | 'yellow' => {
-    const index = categories.indexOf(category);
-    const colors: Array<'green' | 'orange' | 'purple' | 'yellow'> = ['purple', 'green', 'orange', 'yellow'];
-    return colors[index % colors.length];
+  const removeRubric = (index: number) => {
+    const newRubrics = rubrics.filter((_, i) => i !== index);
+    setRubrics(newRubrics);
+  };
+
+  const handleProceed = async () => {
+    const confirmed = rubrics.filter(r => r.selected).map(r => r.rubric);
+    
+    if (confirmed.length === 0) {
+      Alert.alert("Selection Required", "Please confirm at least one rubric to proceed to decision support.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await scoreRubrics(confirmed);
+      navigation.navigate('RemedyResults', {
+        remedies: response.remedies,
+        confirmedRubrics: confirmed,
+        analysisSummary: analysisResult?.summary
+      });
+    } catch (err) {
+      console.error(err);
+      Alert.alert("Scoring Error", "Failed to calculate remedy scores. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -36,73 +59,75 @@ export default function ReviewScreen({ route, navigation }: any) {
       <View style={styles.content}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Review Symptoms</Text>
-          <Text style={styles.patientInfo}>Physician in doctor-controlled</Text>
+          <Text style={styles.headerTitle}>Review System Understanding</Text>
+          <Text style={styles.headerSubtitle}>Phase 2: Confirm or adjust identified rubrics</Text>
         </View>
 
-        {/* Patient Card */}
-        <View style={[styles.patientCard, Shadows.small]}>
-          <Text style={styles.patientName}>Rajesh Kumar</Text>
-          <View style={styles.patientDetails}>
-            <Text style={styles.patientDetail}>ID: 542309</Text>
-            <Text style={styles.patientDetail}>Male, 65 Years</Text>
+        {/* AI Clinical Summary */}
+        {analysisResult?.summary && (
+          <View style={[styles.summaryCard, Shadows.small]}>
+            <Text style={styles.summaryTitle}>Clinical Interpretation:</Text>
+            <Text style={styles.summaryText}>{analysisResult.summary}</Text>
           </View>
+        )}
+
+        {/* Doctor Context */}
+        <View style={[styles.contextCard, Shadows.small]}>
+          <Text style={styles.contextLabel}>Original Notes:</Text>
+          <Text style={styles.contextText} numberOfLines={3}>"{doctorText}"</Text>
         </View>
 
-        {/* Symptoms by Category */}
-        {categories.map((category) => (
-          <View key={category} style={styles.categorySection}>
-            <TouchableOpacity
-              style={[styles.categoryHeader, Shadows.small]}
-              onPress={() => setExpandedCategory(expandedCategory === category ? null : category)}
-            >
-              <View style={styles.categoryTitleContainer}>
-                <Badge label={category} type={getCategoryColor(category)} />
-                <Text style={styles.categoryTitle}>{category}</Text>
-              </View>
-              <Text style={styles.expandIcon}>
-                {expandedCategory === category ? '▼' : '▶'}
-              </Text>
-            </TouchableOpacity>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>IDENTIFIED RUBRICS</Text>
+          <Text style={styles.sectionBadge}>{rubrics.length}</Text>
+        </View>
 
-            {expandedCategory === category && (
-              <View style={styles.categoryContent}>
-                {groupedRubrics[category].map((rubric, idx) => (
-                  <View key={idx} style={[styles.symptomItem, idx !== groupedRubrics[category].length - 1 && styles.symptomBorder]}>
-                    <View style={styles.symptomHeader}>
-                      <Text style={styles.symptomPath}>{rubric.path}</Text>
-                      <View style={styles.confidencePill}>
-                        <Text style={styles.confidenceValue}>{Math.round(rubric.confidence * 100)}%</Text>
-                      </View>
-                    </View>
-                    <Text style={styles.symptomEvidence}>{rubric.evidence}</Text>
-                  </View>
-                ))}
-              </View>
-            )}
-          </View>
+        {/* Suggested Rubrics List */}
+        {rubrics.map((item, index) => (
+          <RubricSuggestionCard
+            key={index}
+            rubric={item.rubric}
+            confidence={item.confidence}
+            matchedTokens={item.matched}
+            rationale={item.rationale}
+            selected={item.selected}
+            onToggle={() => toggleRubric(index)}
+            onRemove={() => removeRubric(index)}
+          />
         ))}
 
-        {/* Add Another Rubric */}
-        <TouchableOpacity style={styles.addBtn}>
-          <Text style={styles.addBtnText}>+ Add another rubric</Text>
-        </TouchableOpacity>
+        {rubrics.length === 0 && (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateText}>No rubrics identified. Go back to edit notes.</Text>
+          </View>
+        )}
 
         {/* Action Buttons */}
         <View style={styles.actionButtons}>
           <TouchableOpacity
-            style={[styles.actionBtn, styles.authorizeBtnContainer]}
-            onPress={() => navigation.navigate('Review')}
+            style={[styles.actionBtn, styles.proceedBtn, loading && styles.btnDisabled]}
+            onPress={handleProceed}
+            disabled={loading}
           >
-            <Text style={styles.authorizeBtn}>Authorize Symptomization</Text>
+            {loading ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Text style={styles.proceedBtnText}>Proceed to CDSS Results</Text>
+            )}
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.actionBtn, styles.secondaryBtnContainer]}
+            style={[styles.actionBtn, styles.backBtn]}
             onPress={() => navigation.goBack()}
           >
-            <Text style={styles.secondaryBtn}>Back</Text>
+            <Text style={styles.backBtnText}>Edit Case Notes</Text>
           </TouchableOpacity>
+        </View>
+
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>
+            This is a Decision Support System. The physician maintains final clinical authority over all selections.
+          </Text>
         </View>
       </View>
     </ScrollView>
@@ -115,158 +140,137 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   content: {
-    padding: 16,
+    padding: 20,
     paddingBottom: 40,
   },
   header: {
-    marginBottom: 20,
+    marginBottom: 24,
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '700',
     color: Colors.text,
   },
-  patientInfo: {
-    fontSize: 13,
-    color: Colors.warning,
+  headerSubtitle: {
+    fontSize: 14,
+    color: Colors.primary,
     fontWeight: '500',
     marginTop: 4,
   },
-  patientCard: {
+  contextCard: {
     backgroundColor: Colors.background,
     borderRadius: 12,
-    padding: 14,
-    marginBottom: 20,
+    padding: 16,
+    marginBottom: 24,
     borderWidth: 1,
     borderColor: Colors.border,
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.textSecondary,
   },
-  patientName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: Colors.text,
-    marginBottom: 8,
-  },
-  patientDetails: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  patientDetail: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-  },
-  categorySection: {
-    marginBottom: 12,
-  },
-  categoryHeader: {
-    backgroundColor: Colors.background,
+  summaryCard: {
+    backgroundColor: Colors.lightPurple,
     borderRadius: 12,
-    padding: 14,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Colors.border,
+    padding: 16,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.primary,
   },
-  categoryTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    gap: 10,
-  },
-  categoryTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  expandIcon: {
+  summaryTitle: {
     fontSize: 12,
-    color: Colors.textSecondary,
-  },
-  categoryContent: {
-    backgroundColor: 'rgba(124, 77, 255, 0.03)',
-    borderRadius: 0,
-    borderBottomLeftRadius: 12,
-    borderBottomRightRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderTopWidth: 0,
-    borderColor: Colors.border,
-  },
-  symptomItem: {
-    paddingVertical: 10,
-  },
-  symptomBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.divider,
-  },
-  symptomHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    fontWeight: '800',
+    color: Colors.primary,
     marginBottom: 6,
+    textTransform: 'uppercase',
   },
-  symptomPath: {
-    fontSize: 13,
-    fontWeight: '600',
+  summaryText: {
+    fontSize: 15,
     color: Colors.text,
-    flex: 1,
+    lineHeight: 22,
+    fontWeight: '500',
+  },
+  contextLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.textSecondary,
+    marginBottom: 6,
+    textTransform: 'uppercase',
+  },
+  contextText: {
+    fontSize: 14,
+    color: Colors.text,
+    fontStyle: 'italic',
+    lineHeight: 20,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.textLight,
+    letterSpacing: 1,
     marginRight: 8,
   },
-  confidencePill: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
-    minWidth: 45,
-    alignItems: 'center',
-  },
-  confidenceValue: {
-    color: Colors.textWhite,
+  sectionBadge: {
+    backgroundColor: Colors.border,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    fontSize: 10,
     fontWeight: '700',
-    fontSize: 11,
-  },
-  symptomEvidence: {
-    fontSize: 12,
     color: Colors.textSecondary,
-    lineHeight: 16,
-    marginTop: 2,
-  },
-  addBtn: {
-    alignItems: 'center',
-    paddingVertical: 12,
-    marginVertical: 16,
-  },
-  addBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.primary,
+    overflow: 'hidden',
   },
   actionButtons: {
+    marginTop: 24,
     gap: 12,
-    marginTop: 12,
   },
   actionBtn: {
-    borderRadius: 10,
-    paddingVertical: 14,
+    height: 52,
+    borderRadius: 12,
+    justifyContent: 'center',
     alignItems: 'center',
+    flexDirection: 'row',
   },
-  authorizeBtnContainer: {
+  proceedBtn: {
     backgroundColor: Colors.primary,
   },
-  authorizeBtn: {
-    color: Colors.textWhite,
+  proceedBtnText: {
+    color: '#fff',
+    fontSize: 16,
     fontWeight: '700',
-    fontSize: 14,
   },
-  secondaryBtnContainer: {
-    borderWidth: 1,
-    borderColor: Colors.border,
+  backBtn: {
     backgroundColor: Colors.background,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
   },
-  secondaryBtn: {
+  backBtnText: {
     color: Colors.textSecondary,
+    fontSize: 15,
     fontWeight: '600',
-    fontSize: 14,
+  },
+  btnDisabled: {
+    opacity: 0.6,
+  },
+  emptyState: {
+    padding: 40,
+    alignItems: 'center',
+  },
+  emptyStateText: {
+    color: Colors.textLight,
+    textAlign: 'center',
+  },
+  footer: {
+    marginTop: 32,
+    paddingHorizontal: 10,
+  },
+  footerText: {
+    fontSize: 11,
+    color: Colors.textLight,
+    textAlign: 'center',
+    lineHeight: 16,
   },
 });

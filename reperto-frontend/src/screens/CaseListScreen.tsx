@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, FlatList, TextInput, StatusBar } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, FlatList, TextInput, StatusBar, ActivityIndicator, Alert, Platform } from 'react-native';
 import { Colors, Shadows } from '../styles';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import PatientCard from '../components/PatientCard';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getProfile, getCases } from '../services/api';
 
 type CasesNav = NativeStackNavigationProp<RootStackParamList, 'Cases'>;
 
@@ -11,20 +14,54 @@ type Props = {
   navigation: CasesNav;
 };
 
-const recentCases = [
-  { id: '1', name: 'Rajesh Kumar', initials: 'RK', specialty: 'Male, 65 - Food & Chills', time: 'TODAY 10:30 AM' },
-  { id: '2', name: 'Anita Desai', initials: 'AD', specialty: 'Female, 32 - Migraine', time: 'Yesterday' },
-  { id: '3', name: 'Vikram Singh', initials: 'VS', specialty: 'Male, 41 - Flu', time: 'Mon' },
-  { id: '4', name: 'Meera Patel', initials: 'MP', specialty: 'Female, 52 - Arthritis', time: 'Tue' },
-];
-
 export default function CaseListScreen({ navigation }: Props) {
   const [search, setSearch] = useState('');
+  const [userName, setUserName] = useState('Doctor');
+  const [cases, setCases] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filteredCases = recentCases.filter(c =>
+  useFocusEffect(
+    useCallback(() => {
+      loadInitialData();
+    }, [])
+  );
+
+  async function loadInitialData() {
+    try {
+      // Try to get name from storage first for instant UI
+      const storedName = await AsyncStorage.getItem('user_name');
+      if (storedName) setUserName(storedName);
+
+      // Fetch fresh profile and cases
+      const [profile, casesData] = await Promise.all([
+        getProfile(),
+        getCases()
+      ]);
+
+      if (profile?.name) {
+        setUserName(profile.name);
+        await AsyncStorage.setItem('user_name', profile.name);
+      }
+      setCases(casesData);
+    } catch (e) {
+      console.error("Failed to load data", e);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const filteredCases = cases.filter(c =>
     c.name.toLowerCase().includes(search.toLowerCase()) ||
     c.specialty.toLowerCase().includes(search.toLowerCase())
   );
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -32,9 +69,17 @@ export default function CaseListScreen({ navigation }: Props) {
       
       {/* Header */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.greeting}>Welcome back,</Text>
-          <Text style={styles.doctorName}>Dr. Sharma</Text>
+        <View style={styles.headerTop}>
+          <View>
+            <Text style={styles.greeting}>Welcome back,</Text>
+            <Text style={styles.doctorName}>{userName}</Text>
+          </View>
+          <TouchableOpacity 
+            style={styles.settingsBtn}
+            onPress={() => navigation.navigate('Settings' as any)}
+          >
+            <Text style={styles.settingsIcon}>⚙️</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -67,7 +112,16 @@ export default function CaseListScreen({ navigation }: Props) {
             <Text style={styles.btnText}>New Case</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity style={[styles.consultationBtn, styles.acuteBtn]} onPress={() => {}}>
+          <TouchableOpacity 
+            style={[styles.consultationBtn, styles.acuteBtn]} 
+            onPress={() => {
+              if (Platform.OS === 'web') {
+                alert("Acute case intake is coming soon! ✨");
+              } else {
+                Alert.alert("Coming Soon", "Acute case intake is coming soon! ✨");
+              }
+            }}
+          >
             <Text style={[styles.btnText, { color: Colors.text }]}>Acute</Text>
           </TouchableOpacity>
         </View>
@@ -76,8 +130,8 @@ export default function CaseListScreen({ navigation }: Props) {
       {/* Recent Cases Header */}
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Recent Cases</Text>
-        <TouchableOpacity>
-          <Text style={styles.viewAll}>View All</Text>
+        <TouchableOpacity onPress={() => loadInitialData()}>
+          <Text style={styles.viewAll}>Refresh</Text>
         </TouchableOpacity>
       </View>
 
@@ -86,7 +140,7 @@ export default function CaseListScreen({ navigation }: Props) {
         data={filteredCases}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <TouchableOpacity onPress={() => navigation.navigate('EditCase', { caseId: item.id })}>
+          <TouchableOpacity onPress={() => navigation.navigate('CaseDetail', { caseId: item.id })}>
             <PatientCard
               name={item.name}
               initials={item.initials}
@@ -95,8 +149,10 @@ export default function CaseListScreen({ navigation }: Props) {
             />
           </TouchableOpacity>
         )}
-        scrollEnabled={false}
         contentContainerStyle={styles.casesList}
+        ListEmptyComponent={
+          <Text style={{ textAlign: 'center', marginTop: 20, color: Colors.textLight }}>No cases found</Text>
+        }
       />
 
       {/* New Case FAB */}
@@ -120,6 +176,11 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 16,
   },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   greeting: {
     fontSize: 14,
     color: Colors.textSecondary,
@@ -130,6 +191,14 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Colors.text,
     marginTop: 4,
+  },
+  settingsBtn: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: Colors.lightGray,
+  },
+  settingsIcon: {
+    fontSize: 20,
   },
   searchContainer: {
     paddingHorizontal: 20,

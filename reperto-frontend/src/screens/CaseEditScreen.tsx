@@ -1,43 +1,73 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert, ActivityIndicator } from 'react-native';
-import { parseText } from '../services/api';
+import { saveCase, analyzeCDSS } from '../services/api';
 import { Colors, Shadows } from '../styles';
 import RubricCard from '../components/RubricCard';
 import Badge from '../components/Badge';
 
 export default function CaseEditScreen({ navigation }: any) {
+  const [patientName, setPatientName] = useState('');
   const [text, setText] = useState('');
   const [summary, setSummary] = useState('');
   const [risk, setRisk] = useState('');
   const [rubrics, setRubrics] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [analyzed, setAnalyzed] = useState(false);
+
+  async function handleSave() {
+    if (!patientName.trim()) {
+      Alert.alert('Error', 'Please enter patient name before saving');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const initials = patientName.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+      await saveCase({
+        name: patientName,
+        initials: initials,
+        specialty: `Risk: ${risk.toUpperCase()} - ${summary.substring(0, 30)}...`,
+        time: 'Just now'
+      });
+      
+      Alert.alert(
+        'Case Saved! ✅',
+        'The patient case has been added to your recent consultations.',
+        [{ text: 'View Home', onPress: () => navigation.navigate('Cases') }, { text: 'Stay Here' }]
+      );
+    } catch (e) {
+      Alert.alert('Error', 'Failed to save case. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  }
 
   async function handleAnalyze() {
     if (!text.trim()) {
-      Alert.alert('Error', 'Please enter patient complaint');
+      Alert.alert('Clinical Input Required', 'Please enter patient symptoms to begin analysis.');
       return;
     }
 
     setLoading(true);
     try {
-      const res = await parseText(text);
-
-      setSummary(res.summary || '');
-      setRisk(res.risk || 'unknown');
-
-      setRubrics(
-        Array.isArray(res.rubrics)
-          ? res.rubrics.map((r: any) => ({
-              path: r.path || 'Unknown',
-              confidence: r.confidence ?? 0,
-              evidence: r.evidence ?? '',
-            }))
-          : []
-      );
-      setAnalyzed(true);
+      const response = await analyzeCDSS(text);
+      
+      if (response && response.result) {
+        setSummary(response.result.summary || '');
+        setAnalyzed(true);
+        
+        // Auto navigate if summary is received
+        navigation.navigate('Review', {
+          analysisResult: response.result,
+          doctorText: text
+        });
+      } else {
+        throw new Error("Invalid medical engine response");
+      }
     } catch (e) {
-      Alert.alert('Error', 'Backend not reachable. Please start the backend server.');
+      console.error(e);
+      Alert.alert('Medical Engine Offline', 'The Reperto Core is currently unreachable. Please ensure the backend server is running.');
     } finally {
       setLoading(false);
     }
@@ -67,6 +97,16 @@ export default function CaseEditScreen({ navigation }: any) {
 
         {/* Input Section */}
         <View style={[styles.card, Shadows.small]}>
+          <Text style={styles.label}>Patient Name</Text>
+          <TextInput
+            style={[styles.input, { minHeight: 45, marginBottom: 12 }]}
+            placeholder="e.g. Rajesh Kumar"
+            placeholderTextColor={Colors.textLight}
+            value={patientName}
+            onChangeText={setPatientName}
+            editable={!loading}
+          />
+
           <Text style={styles.label}>Patient Complaint</Text>
           <TextInput
             style={styles.input}
@@ -91,68 +131,14 @@ export default function CaseEditScreen({ navigation }: any) {
           </TouchableOpacity>
         </View>
 
-        {/* Analysis Results */}
+        {/* Analysis Results - Redirect to Review */}
         {analyzed && (
-          <>
-            {/* Summary Section */}
-            <View style={[styles.card, Shadows.small, styles.resultCard]}>
-              <Text style={styles.resultTitle}>Analysis Summary</Text>
-              <Text style={styles.summaryText}>{summary}</Text>
-              
-              <View style={styles.riskContainer}>
-                <Text style={styles.riskLabel}>Risk Level:</Text>
-                <View
-                  style={[
-                    styles.riskBadge,
-                    { backgroundColor: getRiskColor(risk) + '20' },
-                  ]}
-                >
-                  <Text style={[styles.riskText, { color: getRiskColor(risk) }]}>
-                    {risk.toUpperCase()}
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Suggested Rubrics */}
-            {rubrics.length > 0 && (
-              <View>
-                <View style={styles.rubricsHeader}>
-                  <Text style={styles.rubricsTitle}>Suggested Rubrics</Text>
-                  <View style={styles.rubricBadge}>
-                    <Text style={styles.rubricCount}>{rubrics.length}</Text>
-                  </View>
-                </View>
-
-                {rubrics.map((rubric, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    onPress={() => navigation.navigate('Review', { confirmed: [rubric] })}
-                    activeOpacity={0.7}
-                  >
-                    <RubricCard
-                      path={rubric.path}
-                      confidence={rubric.confidence}
-                      evidence={rubric.evidence}
-                    />
-                  </TouchableOpacity>
-                ))}
-
-                <TouchableOpacity
-                  style={[styles.confirmBtn, Shadows.small]}
-                  onPress={() => navigation.navigate('Review', { confirmed: rubrics })}
-                >
-                  <Text style={styles.confirmBtnText}>Review All Rubrics</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {rubrics.length === 0 && !loading && (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyStateText}>No rubrics found. Try a different complaint.</Text>
-              </View>
-            )}
-          </>
+          <TouchableOpacity
+            style={[styles.confirmBtn, Shadows.small]}
+            onPress={() => navigation.navigate('Review')}
+          >
+            <Text style={styles.confirmBtnText}>Continue to Review</Text>
+          </TouchableOpacity>
         )}
       </View>
     </ScrollView>
@@ -258,6 +244,22 @@ const styles = StyleSheet.create({
   riskText: {
     fontSize: 12,
     fontWeight: '700',
+  },
+  saveBtn: {
+    marginTop: 20,
+    backgroundColor: Colors.background,
+    borderWidth: 1.5,
+    borderColor: Colors.primary,
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+  },
+  saveBtnText: {
+    color: Colors.primary,
+    fontWeight: '700',
+    fontSize: 14,
   },
   rubricsHeader: {
     flexDirection: 'row',
