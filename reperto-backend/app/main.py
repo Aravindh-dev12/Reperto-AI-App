@@ -15,7 +15,7 @@ load_dotenv()
 
 from .database import SessionLocal
 from .models import User, Case
-from .schemas import UserCreate, UserLogin, Token, CaseResponse, CaseCreate
+from .schemas import UserCreate, UserLogin, Token, CaseResponse, CaseCreate, UserResponse
 from .auth import create_user, authenticate_user, create_access_token, SECRET_KEY, ALGORITHM
 from .ai import parse_text_endpoint
 from sqlalchemy.orm import Session
