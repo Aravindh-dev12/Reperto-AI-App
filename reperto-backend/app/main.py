@@ -15,7 +15,10 @@ load_dotenv()
 
 from .database import SessionLocal
 from .models import User, Case
+from .schemas import UserCreate, UserLogin, Token, CaseResponse, CaseCreate
+from .auth import create_user, authenticate_user, create_access_token, SECRET_KEY, ALGORITHM
 from sqlalchemy.orm import Session
+from jose import jwt, JWTError
 import json
 
 app = FastAPI(title="Reperto AI Backend")
