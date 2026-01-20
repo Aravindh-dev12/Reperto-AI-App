@@ -9,6 +9,9 @@ from .database import SessionLocal
 
 pwd_ctx = CryptContext(schemes=["argon2"], deprecated="auto")
 SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key-change-in-prod")
+if SECRET_KEY == "dev-secret-key-change-in-prod":
+    import warnings
+    warnings.warn("WARNING: Using default SECRET_KEY. Set SECRET_KEY environment variable in production!", RuntimeWarning)
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
 

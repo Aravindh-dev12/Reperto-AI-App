@@ -24,10 +24,16 @@ import json
 
 app = FastAPI(title="Reperto AI Backend")
 
+# Health check endpoint
+@app.get("/", tags=["health"])
+async def health_check():
+    """Root endpoint - returns API status."""
+    return {"status": "ok", "service": "Reperto AI Backend", "version": "1.0"}
+
 # CORS Configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # For production readiness, you can restrict this later
+    allow_origins=["*"],  # TODO: Restrict to frontend domain in production (e.g., ["https://frontend.example.com"])
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

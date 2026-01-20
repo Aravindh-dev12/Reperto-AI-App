@@ -5,7 +5,11 @@ from openai import OpenAI
 from dotenv import load_dotenv
 
 load_dotenv() 
-client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+openai_api_key = os.environ.get("OPENAI_API_KEY")
+if not openai_api_key:
+    import warnings
+    warnings.warn("WARNING: OPENAI_API_KEY environment variable not set. AI features will not work!", RuntimeWarning)
+client = OpenAI(api_key=openai_api_key or "")
 
 def call_openai_parse(text: str):
     try:
