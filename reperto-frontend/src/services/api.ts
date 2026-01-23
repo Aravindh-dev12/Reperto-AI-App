@@ -1,7 +1,7 @@
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const BASE_URL = process.env.REACT_NATIVE_API_URL || "http://localhost:8000"; // Local backend
+const BASE_URL = process.env.REACT_NATIVE_API_URL || "https://reperto-ai-app.onrender.com"; // Local backend
 
 export const api = axios.create({
   baseURL: BASE_URL,
