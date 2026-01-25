@@ -33,7 +33,12 @@ async def health_check():
 # CORS Configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # TODO: Restrict to frontend domain in production (e.g., ["https://frontend.example.com"])
+    allow_origins=[
+        "https://reperto-ai.vercel.app",  # Vercel production
+        "http://localhost:3000",
+        "http://localhost:8000",
+        "http://localhost:5173",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
