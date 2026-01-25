@@ -1,0 +1,12 @@
+[build]
+  command = "npm run web"
+  publish = "web-build"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[env.production]
+  [env.production.context.production.environment]
+    REACT_NATIVE_API_URL = "https://reperto-ai-app.onrender.com"
