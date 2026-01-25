@@ -1,0 +1,9 @@
+{
+  "buildCommand": "npm run web",
+  "outputDirectory": "web-build",
+  "installCommand": "npm install",
+  "env": {
+    "REACT_NATIVE_API_URL": "@reperto_api_url"
+  },
+  "envPrefix": "REACT_NATIVE_"
+}
